@@ -9,14 +9,6 @@ const userSchema = new mongoose.Schema({
         minlength: 3,
         maxlength: 30
     },
-    isOnline:{
-        type: Boolean,
-        default: false
-    },
-    lastSeen: {
-        type: Date,
-        default: Date.now
-    },
     email:{
         type: String,
         required: true,
@@ -25,12 +17,33 @@ const userSchema = new mongoose.Schema({
         lowercase: true,
         match: /.+\@.+\..+/
     },
+    password:{
+        type: String,
+        required: true,
+        minlength: 6
+    },
+    profilePicture:{
+        type: String,
+        default: null
+    },
+    googleId:{
+        type: String,
+        default: null
+    },
+    isOnline:{
+        type: Boolean,
+        default: false
+    },
+    lastSeen: {
+        type: Date,
+        default: Date.now
+    },
     socketId:{
         type: String,
         default: null
     }
 }, {
-        timestamps: true
+    timestamps: true
 });
 
 module.exports = mongoose.model('User', userSchema);

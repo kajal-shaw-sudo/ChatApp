@@ -1,99 +1,121 @@
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Message = require('../models/Message');
 
-const handleSocketConnection = (io) => {
-    io.on('connection', (socket) => {
-        console.log('user connected', socket.id);
-        socket.on('join', async (username) => {
-            try{  // as soon as the user join, update its socket, make him online
-                const user = await User.findOneAndUpdate(
-                    { username },
-                    { online: true, socketId: socket.id, lastSeen: new Date() },
-                );
-                socket.join(username);
-                socket.broadcast.emit('userJoined',{
-                    username,
-                    isOnline: true
-                });
-                console.log(`${username} joined the chat`);
-            }catch(err) {
-                console.error('Error joining user:', err);
-            }
-        })
-    });
+module.exports = (io) => {
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) return next(new Error('Unauthorized'));
+    try {
+      socket.user = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('✅ Socket auth success:', socket.user.username);
+      next();
+    } catch (err) {
+      console.error('❌ Socket auth failed:', err);
+      next(new Error('Unauthorized'));
+    }
+  });
 
-    socket.on('sendMessage', async (data) => {
-        try {
-            const {senderId, receiverId, content} = data;
+  io.on('connection', async (socket) => {
+    console.log('🔌 User connected:', socket.user.username, socket.id);
+    
+    try {
+      await User.findByIdAndUpdate(socket.user.userId, { 
+        isOnline: true, 
+        socketId: socket.id 
+      });
+      socket.join(socket.user.userId);
+      socket.broadcast.emit('userJoined', { 
+        userId: socket.user.userId, 
+        username: socket.user.username 
+      });
+    } catch (err) {
+      console.error('❌ Error updating user status:', err);
+    }
 
-             const newMessage = new Message({
-                sender: senderId,
-                receiver: receiverId,
-                content: content.trim()
-             });
-            await newMessage.save();
-            await newMessage.populate('sender', 'username');
-            await newMessage.populate('receiver', 'username');
+    socket.on('sendMessage', async (data, callback) => {
+      console.log('📤 sendMessage event received:', data);
+      
+      try {
+        const newMessage = new Message({
+          sender: socket.user.userId,
+          receiver: data.receiverId,
+          content: data.content || '',
+          fileUrl: data.fileUrl,
+          fileType: data.fileType,
+          fileName: data.fileName,
+          reactions: []
+        });
 
-        } catch(err) {
-            console.error('Error sending message:', err);
+        await newMessage.save();
+        console.log('✅ Message saved to DB:', newMessage._id);
+
+        // Populate sender and receiver
+        await newMessage.populate('sender', 'username profilePicture');
+        await newMessage.populate('receiver', 'username profilePicture');
+
+        const messageObj = newMessage.toObject();
+        console.log('📨 Message populated:', messageObj);
+
+        // Send to receiver if different from sender
+        if (data.receiverId !== socket.user.userId) {
+          io.to(data.receiverId).emit('receiveMessage', messageObj);
+          console.log('📨 Message sent to receiver:', data.receiverId);
         }
-    });
 
+        // Send success response back to sender
+        callback(messageObj);
+        console.log('✅ Callback sent to sender');
+
+      } catch (err) {
+        console.error('❌ sendMessage error:', err);
+        callback({ error: err.message || 'Failed to send message' });
+      }
+    });
 
     socket.on('typing', (data) => {
-        const { senderId, receiverId } = data;
-        socket.to(receiverId).emit('userTyping', {
-            senderId,
-            isTyping: true
-        });
-    }); 
+      console.log('⌨️ Typing:', socket.user.username, '→', data.receiverId);
+      io.to(data.receiverId).emit('userTyping', { userId: socket.user.userId });
+    });
 
     socket.on('stopTyping', (data) => {
-        const { senderId, receiverId } = data;
-        socket.to(receiverId).emit('userStopTyping', {
-            senderId,
-            isTyping: false
-        });
+      console.log('🛑 Stop typing:', socket.user.username);
+      io.to(data.receiverId).emit('userStopTyping', { userId: socket.user.userId });
     });
 
+    socket.on('reactionUpdate', (data) => {
+      console.log('😀 Reaction update:', data);
+      io.to(data.receiverId).emit('reactionUpdated', {
+        messageId: data.messageId,
+        reactions: data.reactions
+      });
+    });
 
-    socket.on('markAsRead', async (data) => {
-        try{ // A->S
-            // B->R 
-            // B has read A's message
-            const { senderId, receiverId } = data;  // A read B' message // B; data should get update
-            await Message.updateMany(
-                { sender: receiverId, receiver: senderId, isRead: false },
-                { $set: { isRead: true } }
-            ); // this got updated in DB
-            //TODO -> while developing the client i'll send an event or i'll re-use it
-            
-        } catch(err) {
-            console.error('Error marking message as read:', err);
+    socket.on('deleteMessage', async (data) => {
+      try {
+        await Message.findByIdAndDelete(data.messageId);
+        io.to(data.receiverId).emit('messageDeleted', { messageId: data.messageId });
+      } catch (err) {
+        console.error('❌ Delete message error:', err);
+      }
+    });
+
+    socket.on('disconnect', async () => {
+      console.log('🔌 User disconnected:', socket.user.username);
+      try {
+        const user = await User.findOneAndUpdate(
+          { socketId: socket.id }, 
+          { isOnline: false, lastSeen: new Date(), socketId: null }
+        );
+        if (user) {
+          socket.broadcast.emit('userDisconnected', { 
+            userId: user._id, 
+            username: user.username 
+          });
         }
+      } catch (err) {
+        console.error('❌ Error on disconnect:', err);
+      }
     });
-
-
-    socket.on('disconnect', async() => {
-            try{
-                const user = await User.findOneAndUpdate(
-                    { socketId: socket.id },
-                    { online: false, lastSeen: new Date(), socketId: null },
-                );
-
-
-                socket.broadcast.emit('userDisconnected', {
-                    username: user.username,
-                    isOnline: false
-                });
-                console.log(`${user.username} disconnected`);
-            } catch(err) {
-                console.error('Error on disconnect:', err);
-            }
-    });
-
+  });
 };
-
-
-module.exports = handleSocketConnection;
