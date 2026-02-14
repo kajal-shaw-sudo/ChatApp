@@ -107,15 +107,12 @@ Navigate to http://localhost:5173
 ## 📸 Screenshots
 
 ### Chat Interface
-Chat Interface
 <img width="1843" height="862" alt="image" src="https://github.com/user-attachments/assets/ddca3086-6ad5-48ab-a6f0-64ed921e82f7" />
 
 ### Profile Settings
-Profile Settings 
 <img width="1843" height="867" alt="image" src="https://github.com/user-attachments/assets/7ad24a38-a24f-4ba8-9018-736771fb2d47" />
 
 ### Message Reactions
-Reactions 
 <img width="472" height="170" alt="image" src="https://github.com/user-attachments/assets/6e4b0574-d748-4d92-b704-554f061ad9ad" />
 
 
