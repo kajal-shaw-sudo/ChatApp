@@ -50,7 +50,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-/*
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get('/google/callback', passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}?error=auth_failed`, session: false }), (req, res) => {
@@ -58,7 +57,6 @@ router.get('/google/callback', passport.authenticate('google', { failureRedirect
   const user = { _id: req.user._id, username: req.user.username, email: req.user.email, profilePicture: req.user.profilePicture };
   res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
 });
-*/
 
 router.post('/logout', authMiddleware, async (req, res) => {
   await User.findByIdAndUpdate(req.userId, { isOnline: false, lastSeen: new Date() });
