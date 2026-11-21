@@ -18,6 +18,9 @@ const authMiddleware = (req, res, next) => {
 router.get('/conversation/:user1/:user2', authMiddleware, async (req, res) => {
   try {
     const { user1, user2 } = req.params;
+    if (req.userId !== user1 && req.userId !== user2) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const messages = await Message.find({
       $or: [
         { sender: user1, receiver: user2 },
