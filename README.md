@@ -60,6 +60,29 @@ node scripts/benchmark-messages.js
 
 **Limits of this test:** the data is synthetic, the database is local and in-memory, and the cache is warm. It measures MongoDB's query execution time, not what a user sees over the network. It doesn't apply to the search route, which uses a case-insensitive regex on message content.
 
+## ⚡ Benchmark: Socket.io Load Test
+
+`scripts/loadtest-server.js` starts the real server against an in-memory MongoDB with seeded users, and `scripts/loadtest-client.js` opens simulated Socket.io clients that send messages in a ring.
+
+| Test (200 simulated clients, local machine) | Realistic load | Overload |
+|---|---|---|
+| Message rate | ~37 messages/sec | ~378 messages/sec (server saturated) |
+| Delivered / sent | 2,400 / 2,400 | 4,000 / 4,000 |
+| Send-to-delivery latency | p50 11 ms, p95 41 ms, p99 67 ms | p50 ~2,084 ms, p95 ~2,260 ms |
+
+At saturation the server handled about 378 messages/sec, and latency came from queueing. Each message costs one insert plus two `populate` queries, and the handler logs each message to the console.
+
+Run it yourself (two terminals):
+
+```bash
+node scripts/loadtest-server.js
+LT_INTERVAL_MS=5000 LT_MSGS=12 node scripts/loadtest-client.js
+```
+
+(On PowerShell: `$env:LT_INTERVAL_MS=5000; $env:LT_MSGS=12; node scripts/loadtest-client.js`.)
+
+**Limits:** client and server share one machine, the database is in-memory, there is no network latency, and the clients are simulated. The results show the server's behaviour under load, not production performance.
+
 ## 🚧 Known Limitations
 
 - Sessions use Express's default in-memory store, so they reset on every server restart.
@@ -67,6 +90,7 @@ node scripts/benchmark-messages.js
 - The conversation endpoint returns the full history with no pagination.
 - Message search uses an unindexed regex and may be slow on large conversations.
 - There is no rate limiting on login or message routes.
+- The server logs full message contents to the console, which is useful for debugging but should be removed in production.
 
 ## 🚀 Getting Started
 
@@ -179,7 +203,9 @@ ChatApp/
 ├── socket/
 │   └── socketHandler.js   # Socket.io events
 ├── scripts/
-│   └── benchmark-messages.js
+│   ├── benchmark-messages.js   # query index benchmark
+│   ├── loadtest-server.js      # test server with seeded users
+│   └── loadtest-client.js      # simulated Socket.io clients
 ├── frontend/
 │   └── src/
 │       ├── components/
