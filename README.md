@@ -10,13 +10,14 @@ A full-stack, one-to-one real-time chat app built with React, Node.js, Express, 
 - 🔐 **Two login methods:** email/password (bcrypt-hashed) and Google OAuth 2.0 (Passport.js). Both issue a JWT.
 - 💬 **Real-time messaging:** Socket.io with delivery acknowledgements; messages are saved to MongoDB.
 - ⌨️ **Typing indicators**
-- 🟢 **Online status:** see who's online in real time; last-seen time is stored when a user disconnects
+- 🟢 **Online status and last seen:** see who's online in real time; offline users show their last-seen time
 - 😊 **Message reactions:** react with 6 emojis (👍 ❤️ 😂 😮 😢 🙏)
-- ✅ **Read state:** messages track `isRead` and `readAt`
 - 📎 **File and image sharing:** uploads through Multer to Cloudinary
 - 🖼️ **Profile pictures** via Cloudinary
 - 🔍 **Message search** within a conversation
 - 🗑️ **Delete your own messages**
+- 📅 **Date headers:** messages are grouped by day
+- ✅ **Read state (backend only):** messages store `isRead` and `readAt`, and an API route marks them read; the UI doesn't show it yet
 - 📱 **Responsive layout**
 
 ## 🛠️ Tech Stack
@@ -36,9 +37,9 @@ A full-stack, one-to-one real-time chat app built with React, Node.js, Express, 
 ## 🔒 Security Notes
 
 - Passwords are hashed with bcrypt; secrets are read from environment variables.
-- All message routes require a valid JWT.
+- All message routes require a valid JWT, and the Socket.io handshake rejects connections without one.
 - Conversation history can only be fetched by one of its two participants.
-- Message deletion through the REST API is limited to the message's sender.
+- Message deletion is limited to the message's sender, both through the REST API and through the socket event.
 
 ## ⚡ Benchmark: Conversation Query Index
 
