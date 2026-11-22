@@ -93,10 +93,14 @@ module.exports = (io) => {
 
     socket.on('deleteMessage', async (data) => {
       try {
-        await Message.findByIdAndDelete(data.messageId);
-        io.to(data.receiverId).emit('messageDeleted', { messageId: data.messageId });
+        const msg = await Message.findOneAndDelete({
+        _id: data.messageId,
+        sender: socket.user.userId
+        });
+        if (!msg) return;
+        io.to(String(msg.receiver)).emit('messageDeleted', { messageId: data.messageId });
       } catch (err) {
-        console.error('❌ Delete message error:', err);
+        console.error('Delete message error:', err.message);
       }
     });
 
