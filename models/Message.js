@@ -12,4 +12,6 @@ const messageSchema = new mongoose.Schema({
     reactions: [{ userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, emoji: String }]
 }, { timestamps: true });
 
+messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Message', messageSchema);
